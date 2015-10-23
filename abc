@@ -1,0 +1,10 @@
+ip=218.202.225.211
+port=1521
+servicename=sh11
+username=adnrstore
+password=andrstore
+table=tbllog
+primarykey=tid
+columns=tid,accesstype
+where=null
+steps=5000
