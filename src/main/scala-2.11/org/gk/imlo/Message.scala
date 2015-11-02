@@ -4,7 +4,7 @@ import java.sql.DriverManager
 import java.util.{Properties, Date}
 
 import com.datastax.driver.core.ResultSetFuture
-import org.gk.imlo.control.MetaDataSource
+import org.gk.imlo.control.Checkpoint
 import scala.collection.mutable.{ArrayBuffer, Map, Set}
 import scala.collection.mutable.Map
 
@@ -19,13 +19,11 @@ object Message {
 
   case class SuccessAtid(aTid: Long)
 
-  case class TbllogRow(TID: Long, UUID: String, IMSI: String, BRAND: String, MODEL: String, CHANNEL: String, PLAT: String, ANDROIDVER: String, SCREENSIZE: String, LANG: String, APPSTOREVER: String, PROVIDER: String, CONNECTIONMODE: String, GETLOCTYPE: String, LOCSTR: String, COUNTRY: String, PROVINCE: String, CITY: String, IPADDR: String, ACCESSTYPE: String, CURRPAGE: String, PROPAGE: String, PROCONTENT: String, APPID: String, OTHERPARAS: String, CREATED: Date, PHONE: String, PRODUCT: String, SDK: String, DISPLAY: String, CODENAME: String, TCARDSIZE: Long, RAM: String, CPUCLOCKSPEED: String, SOURCE: String, SMSCENTER: String, ENC: String, PVER: Long, IMEI: String, PKG: String)
-
   case class Row(value: Any, dataType: String)
 
   case class RowInfo(id: Long, rows: Set[Row])
 
-  case class ExpdpInfo(ip: String, port: Int, servicename: String, username: String, passwd: String, sql: String, steps: Int,primarykey:String) {
+  case class ExpdpInfo(ip: String, port: Int, servicename: String, username: String, passwd: String, sql: String, steps: Int, primarykey: String) {
     private val url = s"jdbc:oracle:thin:@$ip:$port/$servicename"
     private val props = new Properties()
     props.put("oracle.jdbc.ReadTimeout", "6000")
@@ -51,6 +49,8 @@ object Message {
       }
     }
   }
-  case class RowsInfo(key: Long, rows: ArrayBuffer[Array[(String, Any)]])
+
+  case class RowsInfo(key: Long, rows: ArrayBuffer[Array[(String, String, Any)]])
+
 }
 

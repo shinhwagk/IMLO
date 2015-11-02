@@ -3,42 +3,51 @@ package org.gk.imlo.stream.publisher
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor._
 import akka.routing.RoundRobinPool
-import akka.stream.actor.ActorPublisher
+import akka.stream.actor.ActorSubscriberMessage.OnNext
+import akka.stream.actor.{WatermarkRequestStrategy, RequestStrategy, ActorSubscriber, ActorPublisher}
 import akka.stream.actor.ActorPublisherMessage.{Cancel, Request}
-import org.gk.imlo.Message.RowInfo
-import org.gk.imlo.control.MetaDataSource
-import org.gk.imlo.source.{SourceActuator, SourceSlaveOracle}
+import org.gk.imlo.Message.RowsInfo
+import org.gk.imlo.source.SourceSlaveOracle
 
+import scala.collection.mutable
 
-class SourcePublisher extends ActorPublisher[RowInfo] with ActorLogging {
+class SourcePublisher(threadNum: Int) extends ActorPublisher[RowsInfo] with ActorSubscriber with ActorLogging {
 
+  val queue = mutable.Queue[RowsInfo]()
+
+  override val supervisorStrategy = OneForOneStrategy() {
+    case _: Exception => Restart
+  }
+
+  val slave = context.actorOf(RoundRobinPool(threadNum, supervisorStrategy = supervisorStrategy).props(Props[SourceSlaveOracle]), "sourceDataSlave")
 
   override def receive: Receive = {
 
     case Request(cnt) =>
+      println(s"Source: , 收到请求row数量:${
+        cnt
+      }")
 
-      println(s"Source: , 收到请求row数量:${cnt}")
-
-      for (i <- 1 to (cnt / 5000).toInt) {
-//        val aTid = metaData.getATid
-//        println("接收到" + aTid)
-//        if (aTid == None) {
-//          self ! Cancel
-//          println("导入结束....")
-//        }
-//        println("接收到2" + aTid)
-//        sourceActorRoutees ! aTid.get
+      while (isActive && totalDemand > 0 && !queue.isEmpty) {
+        onNext(queue.dequeue())
       }
 
     case Cancel =>
       println("[FibonacciPublisher] Cancel Message Received -- Stopping")
       context.stop(self)
 
-    case row: RowInfo =>
-      if (isActive && totalDemand > 0) {
-        onNext(row)
+    case rowsInfo: RowsInfo =>
+      queue += rowsInfo
+      while (isActive && totalDemand > 0 && !queue.isEmpty){
+        onNext(queue.dequeue())
       }
+
+    case OnNext(startId: Int) =>
+      slave.tell((startId * 5000).toLong, self)
+
   }
+
+  override protected def requestStrategy: RequestStrategy = WatermarkRequestStrategy(50)
 }
 
 

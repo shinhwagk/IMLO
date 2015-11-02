@@ -1,136 +1,43 @@
-import java.sql.DriverManager
-import java.util.Properties
-import com.datastax.driver.core.Cluster
-
-import scala.collection.mutable.{ArrayBuffer, Map, Set}
+import akka.actor.ActorSystem
+import akka.stream.{OverflowStrategy, ActorMaterializer}
+import akka.stream.scaladsl._
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
  * Created by gk on 2015/10/20.
  */
 object dfdfd extends App {
-  val url = s"jdbc:oracle:thin:@218.202.225.211:1521/sh11";
-  val props = new Properties();
-  val mmm = Set[Map[String, String]]()
-  props.put("oracle.jdbc.ReadTimeout", "6000");
-  props.put("user", "andrstore");
-  props.put("password", "andrstore");
-
-
-  def typeInfo(sql: String): Set[Map[String, String]] = {
-    lazy val conn = DriverManager.getConnection(url, props)
-    val row = conn.prepareStatement("SELECT to_char(created,'yyyy') year,to_char(created,'mm') month,to_char(created,'dd') day,to_char(created,'hh24') hour,to_char(created,'mi') minute,to_char(created,'ss') second from tbllog where rownum<1000").executeQuery()
-    val colNum = row.getMetaData.getColumnCount
-    for (i <- 1 to colNum) {
-      val colType = row.getMetaData.getColumnTypeName(i)
-      val colName = row.getMetaData.getColumnName(i)
-      mmm += Map(colName -> colType)
-    }
-    mmm
-  }
-
-
-  /*
-  *
-  *       colType match {
-        case "NUMBER" => mmm += Map(colName -> colType)
-        case "VARCHAR2" => mmm += Map(colName -> colType)
-        case "DATE" => mmm += Map(colName -> colType)
-        case _ => throw new Exception("没有匹配的类型!!!")
-      }
-  * */
-//  abc(sqlStatment("dfdf"), "adf")
-
-  def abc(mmm: ArrayBuffer[(String, Any, String)], tab: String) = {
-    val head = s"insert into $tab"
-
-    var name = ""
-    for (i <- mmm) {
-      if (i != mmm.last)
-        name = name + i._1 + ","
-      else
-        name = name + i._1
-
-    }
-    println(name)
-  }
-
-
-  //  val cluster = Cluster.builder().addContactPoint("192.168.12.40").build();
-  //  val session = cluster.connect("andrstore")
+    implicit val system = ActorSystem("ClusterSystem")
+    implicit val materializer = ActorMaterializer()
+    Source(1 to 10).via(Flow[Int].map(_*10)).to(Sink.foreach(println))
+  ////  val in = Source(1 to 3)
+  ////  val f1 = Flow[Int].mapAsyncUnordered(3) { i => Future[Int]{println(s"B: $i");Thread.sleep(5000); i} }
+  ////  val f2 = Flow[Int].map { i => println(s"B: $i");Thread.sleep(5000); i }
+  ////  in.via(f2).runWith(Sink.foreach(println))
+  ////  //  Source(1 to 10).via(Flow[Int].map{p=>println("flow");Thread.sleep(10000);p + 10}.buffer(10,OverflowStrategy.backpressure)).to(Sink.foreach[Int](println)).run()
+  ////  val topHeadSink = Sink.head[Int]
+  ////  val bottomHeadSink = Sink.head[Int]
+  ////  val sharedDoubler = Flow[Int].map(_ * 2)
   //
-  //  import scala.collection.JavaConversions._
+  //  val pairUpWithToString = Flow() { implicit b =>
+  //    import FlowGraph.Implicits._
   //
-  //  val cols = session.getCluster.getMetadata.getKeyspace("andrstore").getTable("tbllog").getColumns
+  //    val broadcast = b.add(Broadcast[Int](1))
+  //    val zip = b.add(Merge[Int](1))
   //
-  //  getInsertCqlsyntax
+  //    broadcast.out(0).map(_*10) ~> zip
   //
-  //  def getInsertCqlsyntax = {
-  //
-  //    var name = ""
-  //    for (i <- cols) {
-  //      if (i != cols.last)
-  //        name = name + i.getName + ","
-  //      else
-  //        name = name + i.getName
-  //
-  //    }
-  //    val colList = "(" + name + ")"
-  //
-  //    var name2 = ""
-  //    for (i <- 1 to cols.size()) {
-  //
-  //      if (i != cols.size())
-  //        name2 = name2 + "?" + ","
-  //      else
-  //        name2 = name2 + "?"
-  //    }
-  //    val colList2 = "values(" + name2 + ")"
-  //
-  //
-  //    println(head + colList + colList2)
-  //  }
-
-  //  def tableColoumDataType(): Map[String, (Int, String)] = {
-  //
-  //    val map = Map[String,(Int,String)]()
-  //    var colNum = 1
-  //      columnType match {
-  //        case "NUMBER" =>
-  //          map += (columnName ->(colNum, "Long"))
-  //          colNum += 1
-  //        case "VARCHAR2" =>
-  //          map += (columnName ->(colNum, "String"))
-  //          colNum += 1
-  //        case "DATE" =>
-  //          map += (columnName ->(colNum, "Timestamp"))
-  //          colNum += 1
-  //      }
-  //
+  //    (broadcast.in, zip.out)
   //  }
   //
-  //  def dafd(rs: java.sql.ResultSet) = {
-  //    val mm = Map[Any,String]()
-  //    val m = tableColoumDataType()
-  //    rs.getMetaData.getColumnType()
-  //    while (rs.next()) {
-  //      m.foreach { r =>
-  //        val colType = r._2._2
-  //        val colId = r._2._1
-  //        val colName = r._1
-  //
-  //        val colVal = colType match {
-  //          case "Long" =>
-  //            rs.getLong(colId)
-  //          case "String" =>
-  //            rs.getString(colId)
-  //          case "DATE" =>
-  //            rs.getTimestamp(colId)
-  //        }
-  //
-  //        mm += (colVal -> colType)
-  //      }
-  //    }
-  //  }
+  //Source(1 to 3).buffer(10,OverflowStrategy.backpressure).via(pairUpWithToString).runWith(Sink.foreach(println))
 
 
+  lazy val ssss = for (i <- 1 to 3) yield i * 5
+  val bb = ssss
+  val b = bb.takeRight(2)
+  println(bb)
+  println(b)
+  //  println(ssss.head)
 }

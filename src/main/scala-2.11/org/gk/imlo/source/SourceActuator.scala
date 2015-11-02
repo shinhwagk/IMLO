@@ -1,9 +1,9 @@
 package org.gk.imlo.source
 
-import java.sql.DriverManager
-import java.util.Properties
-import scala.collection.mutable
-import scala.collection.mutable.{ArrayBuffer, Map, Set}
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
+import org.gk.imlo.Message.RowsInfo
+
+import scala.collection.mutable.{ArrayBuffer, Map}
 
 /**
  * Created by gk on 2015/10/22.
@@ -33,50 +33,75 @@ object SourceActuator {
     val columns = sourceInfo("columns")
     val primaryKey = sourceInfo("primarykey")
 
-    s"select $columns from $table where $primaryKey >=? and $primaryKey <= ?"
+    s"SELECT $columns FROM $table WHERE $primaryKey >=? AND $primaryKey < ?"
   }
 
-  def getConnect = {
-    val ip = sourceInfo("ip")
-    val port = sourceInfo("port")
-    val serviceName = sourceInfo("servicename")
-    val username = sourceInfo("username")
-    val password = sourceInfo("password")
-    val url = s"jdbc:oracle:thin:@$ip:$port/$serviceName"
-    val props = new Properties()
-    props.put("oracle.jdbc.ReadTimeout", "6000")
-    props.put("user", username)
-    props.put("password", password)
-    DriverManager.getConnection(url, props)
+  val ip = sourceInfo("ip")
+  val port = sourceInfo("port")
+  val serviceName = sourceInfo("servicename")
+  val username = sourceInfo("username")
+  val password = sourceInfo("password")
+  val url = s"jdbc:oracle:thin:@$ip:$port/$serviceName"
+
+  val ds = {
+    //    val config = new HikariConfig();
+    val ds = new HikariDataSource();
+    ds.setJdbcUrl(url);
+    ds.setUsername(username);
+    ds.setPassword(password);
+    ds.setMaximumPoolSize(15)
+//    ds.setMaxLifetime(60000l)
+    ds.setIdleTimeout(10000l)
+    ds.addDataSourceProperty("cachePrepStmts", "true");
+    ds.addDataSourceProperty("prepStmtCacheSize", "250");
+    ds.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+    ds
+    //    config.addDataSourceProperty("cachePrepStmts", "true");
+    //    config.addDataSourceProperty("prepStmtCacheSize", "250");
+    //    config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+    //    new HikariDataSource(config);
   }
+
 
   def getRows(tid: Long) = {
-    val conn = getConnect
+    val conn = ds.getConnection
     val stmt = conn.prepareStatement(sql)
     stmt.setLong(1, tid)
     stmt.setLong(2, tid + 5000)
     val rs = stmt.executeQuery()
     val colNum = rs.getMetaData.getColumnCount
-    val rows = ArrayBuffer[Array[(String,Any)]]()
-    while (rs.next()) {
-      val row = new Array[(String,Any)](colNum)
-      for (i <- 1 to colNum) {
-        val colType = rs.getMetaData.getColumnTypeName(i)
-        val colName = rs.getMetaData.getColumnName(i)
-        colType match {
-          case "NUMBER" =>
-            row(i) = ("Long", rs.getLong(i))
-          case "VARCHAR2" =>
-            row(i) = ("String", rs.getString(i))
-          case "DATE" =>
-            row(i) = ("Timestamp", rs.getTimestamp(i))
+    val rows = ArrayBuffer[Array[(String,String,Any)]]()
+    try {
+      while (rs.next()) {
+        val row = new Array[(String, String, Any)](colNum)
+        //数组从0开始，但是jdbc数据从1开始.
+        for (i <- 0 to colNum - 1) {
+          val colType = rs.getMetaData.getColumnTypeName(i + 1)
+          val colName = rs.getMetaData.getColumnName(i + 1)
+          colType match {
+            case "NUMBER" =>
+              row(i) = ("Long", colName, rs.getLong(i + 1))
+            case "VARCHAR2" =>
+              row(i) = ("String", colName, rs.getString(i + 1))
+            case "DATE" =>
+              row(i) = ("Timestamp", colName, rs.getTimestamp(i + 1))
+          }
         }
+        rows += row
       }
-      rows += row
+      println(tid, rows.size)
+      RowsInfo(tid, rows)
+    } catch {
+      case ex: Exception => throw ex
     }
-    rs.close()
-    stmt.close()
-    conn.close()
-    (tid, rows)
+    finally {
+      rs.close()
+      stmt.close()
+      conn.close()
+    }
+  }
+
+  def main(args: Array[String]) {
+    println(getRows(300000000).rows(0).map(_._1).toList)
   }
 }
