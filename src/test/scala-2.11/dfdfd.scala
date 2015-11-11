@@ -1,8 +1,11 @@
 import akka.actor.ActorSystem
 import akka.stream.{OverflowStrategy, ActorMaterializer}
 import akka.stream.scaladsl._
-import scala.concurrent.Future
+import com.datastax.driver.core.{ResultSetFuture, ResultSet}
+import scala.concurrent.duration.Duration
+import scala.concurrent.{ExecutionContext, CanAwait, TimeoutException, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Try
 
 /**
  * Created by gk on 2015/10/20.
@@ -40,4 +43,21 @@ object dfdfd extends App {
   println(bb)
   println(b)
   //  println(ssss.head)
+}
+
+class abc(resultSetFuture: ResultSetFuture) extends Future[ResultSet]{
+  override def onComplete[U](f: (Try[ResultSet]) => U)(implicit executor: ExecutionContext): Unit = ???
+
+  override def isCompleted: Boolean = resultSetFuture.isDone
+
+  override def value: Option[Try[ResultSet]] = ???
+
+  @throws[Exception](classOf[Exception])
+  override def result(atMost: Duration)(implicit permit: CanAwait): ResultSet = {
+    resultSetFuture.getUninterruptibly
+  }
+
+  @throws[InterruptedException](classOf[InterruptedException])
+  @throws[TimeoutException](classOf[TimeoutException])
+  override def ready(atMost: Duration)(implicit permit: CanAwait): abc.this.type = ???
 }

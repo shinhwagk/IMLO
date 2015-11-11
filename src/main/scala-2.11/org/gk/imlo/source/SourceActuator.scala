@@ -8,21 +8,23 @@ import scala.collection.mutable.{ArrayBuffer, Map}
 /**
  * Created by gk on 2015/10/22.
  */
-object SourceActuator {
+class SourceActuator {
 
   val sourceInfo = {
     import scala.io.Source
     val tmpMap = Map[String,String]()
     for (i <- Source.fromFile("abc").getLines()) {
-      val kv = i.split("=")
-      val key = kv(0)
-      if (kv.length == 2) {
-        val value = kv(1)
-        if (value != "null") {
-          tmpMap += (key -> value)
+      if (!i.startsWith("#")) {
+        val kv = i.split("=")
+        val key = kv(0)
+        if (kv.length == 2) {
+          val value = kv(1)
+          if (value != "null") {
+            tmpMap += (key -> value)
+          }
+        } else {
+          throw new Exception(s"key:$key 没有值,如果没有请填写null")
         }
-      } else {
-        throw new Exception(s"key:$key 没有值,如果没有请填写null")
       }
     }
     tmpMap
@@ -43,27 +45,22 @@ object SourceActuator {
   val password = sourceInfo("password")
   val url = s"jdbc:oracle:thin:@$ip:$port/$serviceName"
 
-  val ds = {
+  val ds = synchronized {
+
     //    val config = new HikariConfig();
-    val ds = new HikariDataSource();
-    ds.setJdbcUrl(url);
-    ds.setUsername(username);
-    ds.setPassword(password);
-    ds.setMaximumPoolSize(15)
-//    ds.setMaxLifetime(60000l)
-    ds.setIdleTimeout(10000l)
-    ds.addDataSourceProperty("cachePrepStmts", "true");
-    ds.addDataSourceProperty("prepStmtCacheSize", "250");
-    ds.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+    val ds = new HikariDataSource()
+    ds.setJdbcUrl(url)
+    ds.setUsername(username)
+    ds.setPassword(password)
+    ds.setMaximumPoolSize(30)
+    ds.setMinimumIdle(8)
+    ds.setConnectionTimeout(10000l)
+    //    ds.setMaxLifetime(60000l)
+    ds.setIdleTimeout(5000)
     ds
-    //    config.addDataSourceProperty("cachePrepStmts", "true");
-    //    config.addDataSourceProperty("prepStmtCacheSize", "250");
-    //    config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-    //    new HikariDataSource(config);
   }
 
-
-  def getRows(tid: Long) = {
+  def getRows(tid:Long) = {
     val conn = ds.getConnection
     val stmt = conn.prepareStatement(sql)
     stmt.setLong(1, tid)

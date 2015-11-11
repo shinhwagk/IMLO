@@ -4,7 +4,7 @@ import akka.actor.SupervisorStrategy.Restart
 import akka.actor._
 import akka.routing.RoundRobinPool
 import akka.stream.actor.ActorSubscriberMessage.OnNext
-import akka.stream.actor.{WatermarkRequestStrategy, RequestStrategy, ActorSubscriber, ActorPublisher}
+import akka.stream.actor._
 import akka.stream.actor.ActorPublisherMessage.{Cancel, Request}
 import org.gk.imlo.Message.RowsInfo
 import org.gk.imlo.source.SourceSlaveOracle
@@ -13,8 +13,11 @@ import scala.collection.mutable
 
 class SourcePublisher(threadNum: Int) extends ActorPublisher[RowsInfo] with ActorSubscriber with ActorLogging {
 
-  val queue = mutable.Queue[RowsInfo]()
+  override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(max = 5) {
+    override def inFlightInternally: Int = queue.size
+  }
 
+  val queue = mutable.Queue[RowsInfo]()
   override val supervisorStrategy = OneForOneStrategy() {
     case _: Exception => Restart
   }
@@ -37,8 +40,9 @@ class SourcePublisher(threadNum: Int) extends ActorPublisher[RowsInfo] with Acto
       context.stop(self)
 
     case rowsInfo: RowsInfo =>
+      println("当前queue中的数量", queue.size)
       queue += rowsInfo
-      while (isActive && totalDemand > 0 && !queue.isEmpty){
+      while (isActive && totalDemand > 0 && !queue.isEmpty) {
         onNext(queue.dequeue())
       }
 
@@ -47,7 +51,6 @@ class SourcePublisher(threadNum: Int) extends ActorPublisher[RowsInfo] with Acto
 
   }
 
-  override protected def requestStrategy: RequestStrategy = WatermarkRequestStrategy(50)
 }
 
 

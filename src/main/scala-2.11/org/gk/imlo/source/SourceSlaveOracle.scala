@@ -12,6 +12,6 @@ class SourceSlaveOracle extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case tid: Long =>
-      sender() ! SourceActuator.getRows(tid)
+//      sender() ! SourceActuator.getRows(tid)
   }
 }

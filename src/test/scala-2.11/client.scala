@@ -22,9 +22,6 @@ object client extends App {
     import system.dispatcher
     implicit val materializer = ActorMaterializer()
 
-
-
-
     val source = Source(List(1, 2, 3, 3, 3, 4, 5, 5, 6, 6, 6, 6, 6, 7, 6))
     val sink = Sink.foreach(println)
 
