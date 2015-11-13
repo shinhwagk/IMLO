@@ -14,26 +14,15 @@ import scala.concurrent.ExecutionContext.Implicits.global
 /**
   * Created by gk on 2015/11/9.
   */
-class Oracle(sourceInfo: MetaDB.InfoJdbc) {
-  private val info = sourceInfo
-  private val ip = info.ip
-  private val port = info.port
-  private val serviceName = info.service
-  private val username = info.username
-  private val password = info.password
-  private val table = info.tablename
-  private val columns = info.columns
-  private val primaryKey = info.primarykey
-  private val whereString = info.whereString
-  private val step = info.step
-  private val url = s"jdbc:oracle:thin:@$ip:$port/$serviceName"
+class Oracle {
+  val connString = MetaDB.sourceConnString
+  private val url = s"jdbc:oracle:thin:@$connString"
+  println(url)
 
-  private val sql = {
-    s"SELECT $columns FROM $table WHERE $primaryKey >=? AND $primaryKey < ?"
-  }
+  private val sql = MetaDB.sql
+  private val step = MetaDB.step
 
   def getRowSet(keyNum2: Int) = {
-    val url = "jdbc:oracle:thin:@218.202.225.211:1521/sh11"
     val props = new Properties();
     props.put("oracle.jdbc.ReadTimeout", "6000");
     props.put("user", "andrstore");
@@ -60,6 +49,8 @@ class Oracle(sourceInfo: MetaDB.InfoJdbc) {
         colType match {
           case "NUMBER" =>
             row(i) = ("Long", colName, rs.getLong(i + 1))
+          case "CHAR" =>
+            row(i) = ("String", colName, rs.getString(i + 1))
           case "VARCHAR2" =>
             row(i) = ("String", colName, rs.getString(i + 1))
           case "DATE" =>
@@ -74,18 +65,5 @@ class Oracle(sourceInfo: MetaDB.InfoJdbc) {
       conn.close()
     }
     RowsInfo(keyNum2.toLong, rows)
-  }
-
-  val ds = synchronized {
-    val ds = new HikariDataSource()
-    ds.setJdbcUrl(url)
-    ds.setUsername(username)
-    ds.setPassword(password)
-    ds.setMaximumPoolSize(30)
-    ds.setMinimumIdle(8)
-    ds.setConnectionTimeout(10000l)
-    //    ds.setMaxLifetime(60000l)
-    ds.setIdleTimeout(5000)
-    ds
   }
 }

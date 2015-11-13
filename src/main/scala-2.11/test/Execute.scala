@@ -29,22 +29,25 @@ object Execute extends App {
   val sourcePub = ActorPublisher[RowsInfo](sourcePubActor)
   val targetSub = ActorSubscriber[RowsInfo](targetSubscriber)
   Source(sourcePub).to(Sink(targetSub)).run()
+  println("xxx")
+
 }
 
 class SourcePublisher(task: Task) extends ActorPublisher[RowsInfo] with ActorLogging {
-  //  val slave = context.actorOf(Props(classOf[SourceSlave], task), "makeRowSetslave")
+var count = 318
+  override val supervisorStrategy = OneForOneStrategy() {
+    case _: Exception => Restart
+  }
 
-//  override val supervisorStrategy = OneForOneStrategy() {
-//    case _: Exception => Restart
-//  }
-
-  val slave = context.actorOf(Props(classOf[SourceSlave], task), "makeRowSetslave")
+  val slave = context.actorOf(RoundRobinPool(10, supervisorStrategy = supervisorStrategy).props(Props(classOf[SourceSlave], task)), "makeRowSetslave")
 
   override def receive: Receive = {
     case Request(cnt) =>
       println(s"Source: , 收到请求row数量:$cnt")
       (1l to cnt).foreach { p =>
-        slave.tell(task.makeNewExecBuffer,self)
+        slave.tell(count, self)
+        MetaDB.insertChildCheckpoint(count)
+        count +=1
       }
 
     case rowsInfo: RowsInfo =>
@@ -60,13 +63,13 @@ class SourceSlave(task: Task) extends Actor {
     println("actor:" + self.path + ",preRestart child, reason:" + reason + ", message:" + message)
     println("重新发送至:" + self.path + ". 父:" + sender().path)
     val keyNum = message.get.asInstanceOf[Int]
-//    val rowsInfo  =task.getRowSet(keyNum)
-    self.tell(keyNum,sender())
-//    System.exit(1)
+    //    val rowsInfo  =task.getRowSet(keyNum)
+    self.tell(keyNum, sender()) //
+    //    System.exit(1)
   }
 
   override def receive: Receive = {
-    case keyNum:Int =>
+    case keyNum: Int =>
       sender() ! task.getRowSet(keyNum)
   }
 }
@@ -80,7 +83,7 @@ class TargetSubscriber(task: Task) extends ActorSubscriber with ActorLogging {
     case OnNext(rowsInfo: RowsInfo) =>
       println("收到", rowsInfo.key)
       val keyNum = cassnadra.exec(rowsInfo)
-      println("checkpoint",rowsInfo.key)
+      println("checkpoint", rowsInfo.key)
       task.updateSuccessKeyNum(keyNum.toInt)
   }
 }

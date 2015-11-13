@@ -2,12 +2,17 @@ package test.task
 
 import test.meta.MetaDB
 import test.meta.source.Oracle
+import test.target.Cassandra
 
 /**
   * Created by gk on 2015/11/10.
   */
 class Task(taskId: Int) {
-  val taskInfo = MetaDB.getTaskInfo(taskId)
+  MetaDB.initTaskInfo(taskId)
+  val source = new Oracle
+  val cassandra  = new Cassandra
+
+//  val taskInfo = MetaDB.getTaskInfo(taskId)
 
   MetaDB.updateChildExecing;
 
@@ -25,7 +30,7 @@ class Task(taskId: Int) {
   }
 
   //  private val targetId = MetaDB.getInfoCassandra
-  val source = new Oracle(MetaDB.getInfoJdbc)
+
 
   def getRowSet = {
     val keyNum = makeNewExecBuffer
@@ -41,17 +46,17 @@ class Task(taskId: Int) {
   def updateSuccessKeyNum(keyNum: Int) = {
     println(keyNum, "完成")
     MetaDB.updateChildCheckpoint(keyNum)
-    checkpoint
+//    checkpoint
   }
 
-  def checkpoint: Unit = {
-    val minChildTaskSuccessKeyNum = MetaDB.getMinChildTaskKeyNum
-    val updateCount = MetaDB.updateCheckpoint(minChildTaskSuccessKeyNum)
-    println(minChildTaskSuccessKeyNum,updateCount,"更新梳理三")
-    if (updateCount > 0) {
-      MetaDB.deleteChildTask(minChildTaskSuccessKeyNum)
-      println(minChildTaskSuccessKeyNum, "wa昵称")
-      checkpoint
-    }
-  }
+//  def checkpoint: Unit = {
+//    val minChildTaskSuccessKeyNum = MetaDB.getMinChildTaskKeyNum
+////    val updateCount = MetaDB.updateCheckpoint(minChildTaskSuccessKeyNum)
+//    println(minChildTaskSuccessKeyNum,updateCount,"更新梳理三")
+//    if (updateCount > 0) {
+//      MetaDB.deleteChildTask(minChildTaskSuccessKeyNum)
+//      println(minChildTaskSuccessKeyNum, "wa昵称")
+//      checkpoint
+//    }
+//  }
 }

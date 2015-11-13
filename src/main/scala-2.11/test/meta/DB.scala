@@ -19,65 +19,63 @@ object MetaDB {
 
   val url = MetaDB.getUrl("192.168.20.184", "3306", "import", "import", "000000")
   val conn = DriverManager.getConnection(url);
-  var sourceId = 0
-  var targetId = 0
-  var taskId = 0
+  private var sourceId = 0
+  private var targetId = 0
+  private var taskId = 0
   var checkpoint = 0
 
-  def getTaskInfo(taskId: Int) = {
-    val sql = s"select * from task where id = $taskId"
-    val rs = conn.createStatement().executeQuery(sql)
-    rs.next()
+  var step = 0
 
+  var sourceConnString:String = _
+  var sourceUsername:String = _
+  var sourcePassword:String = _
+
+  var targetIp:String = _
+  var targetKeyspace:String = _
+
+  var sql: String = _
+  var cql: String = _
+
+  def initTaskInfo(taskId: Int) = {
+    val query = s"select * from TaskOracleToCassandra where id = $taskId"
+    val stmt = conn.createStatement()
+    val rs = stmt.executeQuery(query)
+    rs.next()
     sourceId = rs.getInt(2)
     targetId = rs.getInt(3)
-    checkpoint = rs.getInt(4)
+    checkpoint = rs.getInt(7)
+    sql = rs.getString(4)
+    cql = rs.getString(5)
+    step = rs.getInt(6)
     this.taskId = taskId
     rs.close
+    stmt.close()
+    getSourceOracle
+    getTargetCassandra
   }
 
-  case class InfoJdbc(id: Int, ip: String, port: String, service: String, username: String, password: String, tablename: String, primarykey: String, columns: String, whereString: String, step: Int)
 
-  def getInfoJdbc = {
-    val sql = s"select * from infojdbc where id = $sourceId"
-    val rs = conn.createStatement().executeQuery(sql)
-    rs.next()
-    val infoJdbc = InfoJdbc(
-      rs.getInt("id"),
-      rs.getString("ip"),
-      rs.getString("port"),
-      rs.getString("service"),
-      rs.getString("username"),
-      rs.getString("password"),
-      rs.getString("tablename"),
-      rs.getString("primarykey"),
-      rs.getString("columns"),
-      rs.getString("wherestring"),
-      rs.getInt("step")
-    )
-    rs.close
-    infoJdbc
-  }
-
-  //
-  //  def getInfoCassandra = {
-  //    Await.result(metaDB.run(MetaTable.infoJdbc.filter(_.Id === targetId).result.head), Duration.Inf).copy()
-  //  }
-
-  def updateTaskCheckpoint(checkpoint: Int) = {
-    val sql = s"update task set checkpoint = $checkpoint where id = $taskId";
-    conn.createStatement().execute(sql)
-  }
-
-  def getCurrentCheckpoint = {
-    val sql = s"select checkpoint from task where id = $taskId"
+  def getSourceOracle = {
+    val query = s"select * from SourceOracle where id = $sourceId"
     val stmt = conn.createStatement()
-    val rs = stmt.executeQuery(sql)
-    rs.next
-    val checkpoint = rs.getInt(1)
+    val rs = stmt.executeQuery(query)
+    rs.next()
+    sourceConnString = rs.getString("connString")
+    sourceUsername = rs.getString("username")
+    sourcePassword = rs.getString("password")
     rs.close
     stmt.close
-    checkpoint
+  }
+
+  def getTargetCassandra = {
+    val query = s"select * from TargetCassandra where id = $targetId"
+    val stmt = conn.createStatement()
+    val rs = stmt.executeQuery(query)
+    rs.next()
+    targetIp = rs.getString("ip")
+    targetKeyspace = rs.getString("keyspace")
+    rs.close
+    stmt.close
   }
 
   def getUnfinishedchildTask = {
@@ -143,20 +141,17 @@ object MetaDB {
   }
 
   def updateChildCheckpoint(keyNum: Int) = {
-    val sql = s"update childtask set success = 1 where taskid = $taskId and execing = 1 and keynum = $keyNum"
+    val sql = s"update TaskOracleToCassandraCheckpoint set endTime = now() where taskId = $taskId and keyNum = $keyNum"
     val stmt = conn.createStatement
     stmt.executeUpdate(sql)
     stmt.close
   }
 
-
-  def updateCheckpoint(keyNum: Int) = {
-    val sql = s"update task set checkpoint = $keyNum where id = $taskId and checkpoint = $keyNum - 1"
+  def insertChildCheckpoint(keyNum: Int) = {
+    val sql = s"insert into TaskOracleToCassandraCheckpoint values($taskId,$keyNum,now(),null)"
     val stmt = conn.createStatement
-    val count = stmt.executeUpdate(sql)
+    stmt.executeUpdate(sql)
     stmt.close
-    println(count,"......")
-    count
   }
 
   def updateChildExecing = {
@@ -166,14 +161,9 @@ object MetaDB {
     stmt.close
   }
 
-  def deleteChildTask(keyNum:Int) ={
+  def deleteChildTask(keyNum: Int) = {
     val stmt = conn.createStatement()
     stmt.executeUpdate(s"delete from childtask where keynum = $keyNum")
     stmt.close()
   }
-
-  //  def insertCheckpointList(keyNum: Int): Unit = {
-  //    val sql = s"insert into checkpointlist values($keyNum)"
-  //    conn.createStatement().execute(sql)
-  //  }
 }
