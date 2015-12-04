@@ -21,7 +21,7 @@ class IMLOSource extends ActorPublisher[String] {
 
   override def receive: Receive = {
     case Request(cnt) =>
-      println(s"Source: , 收到请求row数量:$cnt......................")
+      println(s"Source: , 收到请求row数量:$cnt.......................")
       (1l to cnt).foreach { p =>
         val conn = ds.getConnection()
         context.actorOf(Props[SourceOracle]).tell((id, conn), self)
