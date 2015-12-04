@@ -15,5 +15,9 @@ libraryDependencies ++= Seq(
   "com.datastax.cassandra" % "cassandra-driver-core" % "2.1.8",
   "mysql" % "mysql-connector-java" % "5.1.37",
   "com.typesafe.slick" %% "slick" % "3.1.0",
-  "com.zaxxer" % "HikariCP" % "2.4.1"
+  "com.zaxxer" % "HikariCP" % "2.4.3",
+  "com.google.code.gson" % "gson" % "2.5"
+
 )
+
+fork in run := true

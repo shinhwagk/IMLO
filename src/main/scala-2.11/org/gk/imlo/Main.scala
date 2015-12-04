@@ -16,7 +16,7 @@ import org.gk.imlo.control.ImportTable
 import org.gk.imlo.source.SourceSlaveOracle
 import org.gk.imlo.stream.publisher.SourcePublisher
 import slick.driver.MySQLDriver.api._
-import test.meta.MetaDB
+import test.MetaDB
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
